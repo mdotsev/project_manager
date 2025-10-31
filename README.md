@@ -25,6 +25,7 @@
 - Docker, docker-compose, Nginx, Gunicorn
 
 ## Запуск через Docker
+Команды ниже нужно выполнить из директории /infra
 1) Соберите и запустите контейнеры:
 ```
  docker-compose up -d --build
