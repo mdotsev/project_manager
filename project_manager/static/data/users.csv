@@ -1,0 +1,6 @@
+id,username,email,role,bio,first_name,last_name
+100,bingobongo,bingobongo@ya.fake,user,,,
+101,capt_obvious,capt_obvious@ya.fake,admin,,,
+102,faust,faust@ya.fake,user,,,
+103,reviewer,reviewer@ya.fake,user,,,
+104,angry,angry@ya.fake,moderator,,,

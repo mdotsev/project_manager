@@ -1,0 +1,360 @@
+openapi: 3.0.2
+info:
+  title: 'Task Manager API'
+  version: '1.0.0'
+  description: |
+    Запросы к API начинаются с `/api/v1/`.
+
+    Проект представляет собой MVP системы управления проектами и задачами.
+    Доступные сущности: проекты и задачи. Авторизация — через JWT (signup/token),
+    базовые операции с пользователями — сохранены.
+
+    Сервис отправки писем не реализован, поэтому проект возможно развернуть только локально. 
+    Токен для отправки запросов можно посмотреть в директории project_manager/sent_emails.
+
+servers:
+  - url: /api/v1/
+
+tags:
+  - name: AUTH
+    description: Регистрация пользователей и выдача токенов
+  - name: PROJECTS
+    description: Управление проектами
+  - name: TASKS
+    description: Управление задачами
+  - name: USERS
+    description: Пользователи
+
+paths:
+  /auth/signup/:
+    post:
+      tags: [AUTH]
+      summary: Регистрация нового пользователя
+      description: Получить код подтверждения на переданный email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, username]
+              properties:
+                email:
+                  type: string
+                username:
+                  type: string
+      responses:
+        200:
+          description: Код подтверждения отправлен
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [email, username]
+                properties:
+                  email:
+                    type: string
+                  username:
+                    type: string
+        400:
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /auth/token/:
+    post:
+      tags: [AUTH]
+      summary: Получение JWT-токена
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, confirmation_code]
+              properties:
+                username:
+                  type: string
+                confirmation_code:
+                  type: string
+      responses:
+        200:
+          description: Токен выдан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        400:
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        404:
+          description: Пользователь не найден
+
+  /projects/:
+    get:
+      tags: [PROJECTS]
+      summary: Список проектов
+      responses:
+        200:
+          description: ОК
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+    post:
+      tags: [PROJECTS]
+      summary: Создать проект
+      security: [{ jwt-token: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        201:
+          description: Создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        400:
+          description: Ошибка валидации
+
+  /projects/{id}/tasks/:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [PROJECTS, TASKS]
+      summary: Список задач проекта
+      responses:
+        200:
+          description: ОК
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        404:
+          description: Проект не найден
+    post:
+      tags: [PROJECTS, TASKS]
+      summary: Создать задачу в проекте
+      security: [{ jwt-token: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        201:
+          description: Создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        400:
+          description: Ошибка валидации
+        404:
+          description: Проект не найден
+
+  /tasks/{id}/:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      tags: [TASKS]
+      summary: Частично обновить задачу
+      security: [{ jwt-token: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+      responses:
+        200:
+          description: ОК
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        400:
+          description: Ошибка валидации
+        403:
+          description: Нет прав
+        404:
+          description: Задача не найдена
+
+components:
+  schemas:
+    Token:
+      type: object
+      properties:
+        access:
+          type: string
+    ValidationError:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          type: string
+
+    User:
+      type: object
+      required: [username, email]
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        bio:
+          type: string
+        role:
+          type: string
+          enum: [user, moderator, admin]
+
+    Project:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        description:
+          type: string
+        author:
+          type: string
+          readOnly: true
+          description: username автора
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ProjectCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+
+    Task:
+      type: object
+      required: [title, status, priority]
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [todo, in_progress, done]
+        priority:
+          type: integer
+          enum: [1, 2, 3]
+        author:
+          type: string
+          readOnly: true
+        assignee:
+          type: string
+          nullable: true
+        due_date:
+          type: string
+          format: date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    TaskCreate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [todo, in_progress, done]
+          default: todo
+        priority:
+          type: integer
+          enum: [1, 2, 3]
+          default: 2
+        assignee:
+          type: string
+          nullable: true
+        due_date:
+          type: string
+          format: date
+          nullable: true
+
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [todo, in_progress, done]
+        priority:
+          type: integer
+          enum: [1, 2, 3]
+        assignee:
+          type: string
+          nullable: true
+        due_date:
+          type: string
+          format: date
+          nullable: true
+
+  securitySchemes:
+    jwt-token:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: 'Заголовок: Authorization: Bearer <JWT>'
